@@ -64,7 +64,6 @@ struct Variant
         : type(variant_lookup<0, Type, ContainedTypes...>::value)
     {
         init(value);
-        static_cast<Type>(data) = value;
     }
 
     ~Variant()
