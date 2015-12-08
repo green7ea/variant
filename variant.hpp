@@ -3,6 +3,7 @@
 #include <type_traits>
 #include <typeinfo>
 #include <functional>
+#include <cstring>
 
 template <size_t ...args>
 struct static_max;
@@ -48,8 +49,18 @@ struct Variant
 
     }
 
+    Variant(const Variant &copy)
+        : type(copy.type)
+    {
+        void *origin = &copy.data;
+        void *destination = &data;
+        memcpy(destination, origin, data_size);
+    }
+
+    Variant(Variant &&) = delete;
+
     template <typename Type>
-    Variant(const Type &value)
+    explicit Variant(const Type &value)
         : type(variant_lookup<0, Type, ContainedTypes...>::value)
     {
         init(value);
@@ -79,13 +90,28 @@ struct Variant
         type = -1;
     }
 
+    Variant<ContainedTypes...> & operator=(const Variant &copy)
+    {
+        destroy();
+        type = copy.type;
+        void *origin = &copy.data;
+        void *destination = &data;
+        memcpy(destination, origin, data_size);
+
+        return *this;
+    }
+
+    Variant<ContainedTypes...> & operator=(Variant &&) = delete;
+
     template <typename Type>
-    void operator=(const Type &value)
+    Variant<ContainedTypes...> & operator=(const Type &value)
     {
         destroy();
         type = variant_lookup<0, Type, ContainedTypes...>::result;
 
         init(value);
+
+        return *this;
     }
 
     template <typename Evaluator>
