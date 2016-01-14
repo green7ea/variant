@@ -1,5 +1,5 @@
 CXX = clang++
-CXXFLAGS = -MD -pipe -Wall -Wextra -std=c++11 -g
+CXXFLAGS = -MD -pipe -Wall -Wextra -Weffc++ -std=c++11 -g
 LDFLAGS =
 SRCS = test.cpp
 OBJS = $(SRCS:.cpp=.o)

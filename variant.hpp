@@ -23,6 +23,12 @@ struct static_max<value, values...>
         static_max<values...>::result;
 };
 
+/* TODO
+ *
+ * Using int here instead of size_t for the result value prevents this
+ * code from compiling with g++. Fix this for the future.
+ */
+
 template <size_t count, typename ...args>
 struct variant_lookup;
 
@@ -44,24 +50,30 @@ template <typename... ContainedTypes>
 struct Variant
 {
     Variant()
-        : type(-1)
+        : type(-1),
+          data()
     {
 
     }
 
     Variant(const Variant &copy)
-        : type(copy.type)
+        : type(copy.type),
+          data()
     {
-        void *origin = &copy.data;
-        void *destination = &data;
-        memcpy(destination, origin, data_size);
+        init(copy.data);
     }
 
-    Variant(Variant &&) = delete;
+    Variant(Variant &&copy)
+        : type(copy.type),
+          data()
+    {
+        init(copy.data);
+    }
 
     template <typename Type>
     explicit Variant(const Type &value)
-        : type(variant_lookup<0, Type, ContainedTypes...>::value)
+        : type(variant_lookup<0, Type, ContainedTypes...>::result),
+          data()
     {
         init(value);
     }
@@ -93,9 +105,7 @@ struct Variant
     {
         destroy();
         type = copy.type;
-        void *origin = &copy.data;
-        void *destination = &data;
-        memcpy(destination, origin, data_size);
+        init(copy.data);
 
         return *this;
     }
@@ -122,12 +132,32 @@ struct Variant
         dispatchers[type](value, &data);
     }
 
+    template <typename Evaluator>
+    void apply(const Evaluator &value) const
+    {
+        static std::function<void (const Evaluator &, const void *)> dispatchers[] =
+            { build_dispatch<Evaluator, ContainedTypes>()... };
+
+        dispatchers[type](value, &data);
+    }
+
     template <typename Evaluator, typename Target>
     std::function<void (Evaluator &, void *)> build_dispatch()
     {
         return [](Evaluator &functor, void *data)
         {
             auto *v = reinterpret_cast<Target *>(data);
+
+            functor.operator()(*v);
+        };
+    }
+
+    template <typename Evaluator, typename Target>
+    std::function<void (const Evaluator &, const void *)> build_dispatch() const
+    {
+        return [](const Evaluator &functor, const void *data)
+        {
+            auto *v = reinterpret_cast<const Target *>(data);
 
             functor.operator()(*v);
         };
